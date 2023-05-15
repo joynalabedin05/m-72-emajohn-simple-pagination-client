@@ -8,42 +8,59 @@ import { Link, useLoaderData } from 'react-router-dom';
 const Shop = () => {
     const [products, setProducts] = useState([]);
     const [cart, setCart] = useState([]);
+    const [currentPage, setCurrentPage] = useState(0);
+    const [itemsPerpage,setItemsPerpage] = useState(10);
     // 1 done. determine the total number of pages
     // 2 TODO. decide the number of items per page
     // 3. calculate total pages
+    // 4. determine the current page
+    // 5. load appropriate data
     const {totalProducts}= useLoaderData();
     // console.log(totalProducts);
-    const itemsPerpage = 10; //TODO: make it dynamic
+    // const itemsPerpage = 10; //TODO: make it dynamic
     const totalPages = Math.ceil(totalProducts/itemsPerpage);
     const pageNumbers = [...Array(totalPages).keys()];
-    console.log(totalProducts);
+    // console.log(totalProducts);
     
-
     useEffect(() => {
-        fetch('http://localhost:5000/products')
+        fetch(`http://localhost:5000/products?page=${currentPage}&limit=${itemsPerpage}`)
             .then(res => res.json())
             .then(data => setProducts(data))
-    }, []);
+    }, [currentPage,itemsPerpage]);
 
     useEffect(() => {
         const storedCart = getShoppingCart();
-        const savedCart = [];
-        // step 1: get id of the addedProduct
-        for (const id in storedCart) {
-            // step 2: get product from products state by using id
-            const addedProduct = products.find(product => product._id === id)
-            if (addedProduct) {
-                // step 3: add quantity
-                const quantity = storedCart[id];
-                addedProduct.quantity = quantity;
-                // step 4: add the added product to the saved cart
-                savedCart.push(addedProduct);
+        const ids = Object.keys(storedCart);
+
+        fetch('http://localhost:5000/productsById',{
+            method: 'POST',
+            headers:{
+                'content-type':'application/json'
+            },
+            body:JSON.stringify(ids),
+        })
+        .then(res=>res.json())
+        .then(cartProducts=>{
+            // console.log('only products in the shopping cart',cartProducts);
+            const savedCart = [];
+            // step 1: get id of the addedProduct
+            for (const id in storedCart) {
+                // step 2: get product from products state by using id
+                const addedProduct = cartProducts.find(product => product._id === id)
+                if (addedProduct) {
+                    // step 3: add quantity
+                    const quantity = storedCart[id];
+                    addedProduct.quantity = quantity;
+                    // step 4: add the added product to the saved cart
+                    savedCart.push(addedProduct);
+                }
+                // console.log('added Product', addedProduct)
             }
-            // console.log('added Product', addedProduct)
-        }
-        // step 5: set the cart
-        setCart(savedCart);
-    }, [products])
+            // step 5: set the cart
+            setCart(savedCart);
+        })
+   
+    }, [])
 
     const handleAddToCart = (product) => {
         // cart.push(product); '
@@ -71,6 +88,12 @@ const Shop = () => {
         deleteShoppingCart();
     }
 
+    const options = [5,10,15,20];
+    const handleSelectChange=(event)=>{
+        setItemsPerpage(event.target.value);
+        setCurrentPage(0)
+    }
+
     return (
         <div>
             <div className='shop-container'>
@@ -95,9 +118,24 @@ const Shop = () => {
             </div>
             </div>
             <div className='pagination'>
+                
+                <p>CurrentPage: {currentPage + 1} ItemsPerpage: {itemsPerpage}</p>
                 {
-                    pageNumbers.map(number=> <button key={number}>{number}</button> )
+                    pageNumbers.map(number=> <button 
+                    onClick={()=>setCurrentPage(number)}
+                    className={currentPage ===number? 'selected': ''}
+                    key={number}
+                    >{number + 1}</button> )
                 }
+                 <select value={itemsPerpage} onChange={handleSelectChange}>
+                    {
+                        options.map(option=><option key={option}
+                        value={option}
+                        >
+                            {option}
+                        </option> )
+                    }
+                </select>
             </div>
         </div>
     );
